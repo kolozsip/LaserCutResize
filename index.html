@@ -1,0 +1,462 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Universal Laser Slot Resizer Pro</title>
+    <style id="themeOverrideSheet">
+        :root {
+            --bg-sidebar: #242424;
+            --bg-viewport: #111111;
+            --text-main: #e0e0e0;
+            --text-title: #ffffff;
+            --text-label: #aaaaaa;
+            --input-bg: #333333;
+            --input-border: #444444;
+            --hint-bg: #2d2d2d;
+            --border-container: #333333;
+        }
+
+        [data-theme="light"] {
+            --bg-sidebar: #f5f5f5;
+            --bg-viewport: #ffffff;
+            --text-main: #333333;
+            --text-title: #111111;
+            --text-label: #666666;
+            --input-bg: #ffffff;
+            --input-border: #cccccc;
+            --hint-bg: #e6e6e6;
+            --border-container: #dddddd;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            margin: 0; padding: 0; 
+            background-color: var(--bg-viewport); 
+            color: var(--text-main);
+            display: flex; height: 100vh; overflow: hidden;
+            transition: background-color 0.15s ease;
+        }
+        .sidebar {
+            width: 320px; background: var(--bg-sidebar); padding: 20px;
+            box-shadow: 2px 0 10px rgba(0,0,0,0.15);
+            display: flex; flex-direction: column; gap: 12px; overflow-y: auto; z-index: 10;
+            transition: background-color 0.15s ease, color 0.15s ease;
+        }
+        h1 { margin: 0; font-size: 18px; color: var(--text-title); border-bottom: 1px solid var(--input-border); padding-bottom: 8px; }
+        .form-group { display: flex; flex-direction: column; gap: 4px; }
+        label { font-size: 11px; font-weight: 600; color: var(--text-label); text-transform: uppercase; }
+        input[type="number"], input[type="file"] {
+            background: var(--input-bg); border: 1px solid var(--input-border); color: var(--text-main);
+            padding: 8px; border-radius: 4px; font-size: 13px; width: 100%; box-sizing: border-box;
+        }
+        button {
+            background-color: #0076ff; color: white; border: none;
+            padding: 10px; font-size: 14px; font-weight: bold;
+            border-radius: 4px; cursor: pointer; transition: 0.2s;
+        }
+        button:hover { background-color: #0060d6; }
+        #downloadBtn {
+            background-color: #28a745; display: none; text-align: center;
+            text-decoration: none; color: white; padding: 12px;
+            border-radius: 4px; font-weight: bold; margin-top: 10px;
+        }
+        
+        .viewport { flex-grow: 1; position: relative; background: var(--bg-viewport); overflow: hidden; transition: background-color 0.15s ease; }
+        
+        #zoomWorkspace {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            display: flex; align-items: center; justify-content: center;
+            transform-origin: 0 0;
+            pointer-events: none;
+        }
+
+        #svgContainer { width: 90%; height: 90%; pointer-events: none; border: 1px solid var(--border-container); position: relative; }
+        #overlayCanvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 5; cursor: crosshair; }
+        
+        .status-bar { position: absolute; bottom: 15px; left: 15px; background: rgba(0,0,0,0.8); color: #fff; padding: 8px 15px; border-radius: 20px; font-size: 11px; pointer-events: none; z-index: 20; }
+        .hint { font-size: 11px; color: var(--text-label); background: var(--hint-bg); padding: 10px; border-radius: 4px; line-height: 1.4; }
+        
+        .zoom-controls {
+            position: absolute; top: 20px; right: 20px;
+            display: flex; flex-direction: column; gap: 6px;
+            z-index: 20;
+        }
+        .zoom-btn {
+            width: 36px; height: 36px; background: var(--bg-sidebar);
+            border: 1px solid var(--input-border); color: var(--text-title);
+            font-size: 18px; font-weight: bold; border-radius: 6px;
+            cursor: pointer; display: flex; align-items: center; justify-content: center;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+            transition: background-color 0.1s;
+        }
+        .zoom-btn:hover { background: var(--input-bg); }
+
+        .theme-switch-wrapper {
+            display: flex; align-items: center; justify-content: space-between;
+            background: var(--hint-bg); padding: 8px 12px; border-radius: 6px;
+        }
+        .theme-switch-label { font-size: 12px; font-weight: bold; color: var(--text-main); }
+        .theme-switch { position: relative; display: inline-block; width: 44px; height: 22px; }
+        .theme-switch input { display: none; }
+        .slider {
+            position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0;
+            background-color: #ccc; transition: .2s; border-radius: 22px;
+        }
+        .slider:before {
+            position: absolute; content: ""; height: 16px; width: 16px; left: 3px; bottom: 3px;
+            background-color: white; transition: .2s; border-radius: 50%;
+        }
+        input:checked + .slider { background-color: #0076ff; }
+        input:checked + .slider:before { transform: translateX(22px); }
+
+        #svgContainer path { stroke: #999999 !important; }
+        [data-theme="light"] #svgContainer path { stroke: #111111 !important; }
+    </style>
+</head>
+<body>
+
+<div class="sidebar">
+    <div class="theme-switch-wrapper">
+        <span class="theme-switch-label">Workspace Light Mode</span>
+        <label class="theme-switch" for="themeCheckbox">
+            <input type="checkbox" id="themeCheckbox">
+            <div class="slider"></div>
+        </label>
+    </div>
+
+    <h1>Precision Resizer</h1>
+    <div class="hint">
+        <b>Controls Strategy:</b><br>
+        • <b>Mouse Wheel</b>: Zoom in/out<br>
+        • <b>Left-Click & Drag</b>: Pan around layout<br>
+        • <b>Single Left-Click</b>: Add/Remove markers directly on slot centers
+    </div>
+    <div class="form-group">
+        <label>1. SVG File</label>
+        <input type="file" id="svgFile" accept=".svg">
+    </div>
+    <div class="form-group">
+        <label>2. File Thickness (mm)</label>
+        <input type="number" id="targetThick" step="0.01" value="3.00">
+    </div>
+    <div class="form-group">
+        <label>3. Real Wood (mm)</label>
+        <input type="number" id="actualThick" step="0.01" value="3.15">
+    </div>
+    <div class="form-group">
+        <label>4. Laser Kerf (mm)</label>
+        <input type="number" id="kerf" step="0.005" value="0.15">
+    </div>
+    <button id="processBtn">Auto-Scan Slots</button>
+    <button id="updateBtn" style="background:#444; color:#fff; margin-top:5px;">Apply Selection</button>
+    <a id="downloadBtn" href="#">Download Repaired SVG</a>
+</div>
+
+<div class="viewport" id="viewportFrame">
+    <div class="zoom-controls">
+        <button class="zoom-btn" id="zoomInBtn" title="Zoom In">+</button>
+        <button class="zoom-btn" id="zoomOutBtn" title="Zoom Out">−</button>
+        <button class="zoom-btn" id="zoomResetBtn" title="Reset View" style="font-size: 12px;">⟲</button>
+    </div>
+
+    <div id="zoomWorkspace">
+        <div id="svgContainer"></div>
+    </div>
+    <canvas id="overlayCanvas"></canvas>
+    
+    <div class="status-bar" id="statusBar">Upload a file.</div>
+</div>
+
+<script>
+const viewportFrame = document.getElementById('viewportFrame');
+const zoomWorkspace = document.getElementById('zoomWorkspace');
+const container = document.getElementById('svgContainer');
+const canvas = document.getElementById('overlayCanvas');
+const ctx = canvas.getContext('2d');
+const themeCheckbox = document.getElementById('themeCheckbox');
+
+let xmlDoc = null, svgEl = null, currentFileName = "fixed.svg";
+let activePoints = [], pathItems = [], globalScale = 100;
+
+let scale = 1, panX = 0, panY = 0;
+let isPanning = false, startPanX = 0, startPanY = 0, hasDragged = false; 
+
+function updateWorkspaceTransforms() {
+    zoomWorkspace.style.transform = `translate(${panX}px, ${panY}px) scale(${scale})`;
+    drawMarkers(); 
+}
+
+function resetView() {
+    scale = 1; panX = 0; panY = 0;
+    updateWorkspaceTransforms();
+}
+
+viewportFrame.addEventListener('wheel', (e) => {
+    e.preventDefault();
+    const zoomIntensity = 0.12;
+    const rect = viewportFrame.getBoundingClientRect();
+    const mouseX = e.clientX - rect.left;
+    const mouseY = e.clientY - rect.top;
+    const wheelDelta = e.deltaY < 0 ? 1 : -1;
+    const targetScale = scale * (1 + wheelDelta * zoomIntensity);
+
+    if (targetScale < 0.15 || targetScale > 25) return;
+
+    panX = mouseX - (mouseX - panX) * (targetScale / scale);
+    panY = mouseY - (mouseY - panY) * (targetScale / scale);
+    scale = targetScale;
+    updateWorkspaceTransforms();
+}, { passive: false });
+
+document.getElementById('zoomInBtn').addEventListener('click', () => {
+    const cx = viewportFrame.offsetWidth / 2, cy = viewportFrame.offsetHeight / 2;
+    const ts = scale * 1.25; if (ts > 25) return;
+    panX = cx - (cx - panX) * (ts / scale); panY = cy - (cy - panY) * (ts / scale); scale = ts;
+    updateWorkspaceTransforms();
+});
+
+document.getElementById('zoomOutBtn').addEventListener('click', () => {
+    const cx = viewportFrame.offsetWidth / 2, cy = viewportFrame.offsetHeight / 2;
+    const ts = scale / 1.25; if (ts < 0.15) return;
+    panX = cx - (cx - panX) * (ts / scale); panY = cy - (cy - panY) * (ts / scale); scale = ts;
+    updateWorkspaceTransforms();
+});
+
+document.getElementById('zoomResetBtn').addEventListener('click', resetView);
+
+canvas.addEventListener('mousedown', (e) => {
+    if (e.button !== 0) return; 
+    isPanning = true; hasDragged = false;
+    startPanX = e.clientX - panX; startPanY = e.clientY - panY;
+});
+
+window.addEventListener('mousemove', (e) => {
+    if (!isPanning) return;
+    const dx = e.clientX - (startPanX + panX), dy = e.clientY - (startPanY + panY);
+    if (Math.hypot(dx, dy) > 3) hasDragged = true; 
+    panX = e.clientX - startPanX; panY = e.clientY - startPanY;
+    updateWorkspaceTransforms();
+});
+
+window.addEventListener('mouseup', () => { isPanning = false; });
+
+themeCheckbox.addEventListener('change', (e) => {
+    if (e.target.checked) document.documentElement.setAttribute('data-theme', 'light');
+    else document.documentElement.removeAttribute('data-theme');
+    drawMarkers(); 
+});
+
+document.getElementById('svgFile').addEventListener('change', (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    currentFileName = "resized_" + file.name;
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+        container.innerHTML = ev.target.result;
+        svgEl = container.querySelector('svg');
+        svgEl.style.width = "100%"; svgEl.style.height = "100%";
+        activePoints = [];
+        
+        const widthMm = parseFloat(svgEl.getAttribute('width'));
+        const vbW = parseFloat(svgEl.viewBox.baseVal.width);
+        globalScale = (vbW && widthMm) ? Math.round(vbW / widthMm) : 100;
+
+        loadPaths();
+        resetView();
+        resizeCanvas();
+    };
+    reader.readAsText(file);
+});
+
+function loadPaths() {
+    pathItems = [];
+    Array.from(container.querySelectorAll('path')).forEach(p => {
+        const d = p.getAttribute('d') || "";
+        // Upgraded match pattern captures both letters and space-separated metrics smoothly
+        const tokens = d.match(/([a-df-zAB-Z])|(-?\d+(?:\.\d+)?)/g) || [];
+        const cmds = [];
+        let curCmd = null;
+
+        tokens.forEach(tok => {
+            if (isNaN(tok)) {
+                if (curCmd) cmds.push(curCmd);
+                curCmd = { type: tok, args: [] };
+            } else if (curCmd) {
+                curCmd.args.push(parseFloat(tok));
+            }
+        });
+        if (curCmd) cmds.push(curCmd);
+        pathItems.push({ cmds, el: p });
+    });
+}
+
+function resizeCanvas() {
+    canvas.width = canvas.offsetWidth; canvas.height = canvas.offsetHeight;
+    drawMarkers();
+}
+window.addEventListener('resize', resizeCanvas);
+
+function drawMarkers() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    if (!svgEl) return;
+
+    const isLightMode = document.documentElement.getAttribute('data-theme') === 'light';
+
+    container.querySelectorAll('path').forEach(p => {
+        p.setAttribute('stroke', isLightMode ? "#222222" : "#999999");
+        p.setAttribute('stroke-width', globalScale === 1 ? "0.3" : "30");
+    });
+
+    activePoints.forEach(pt => {
+        const svgPt = svgEl.createSVGPoint();
+        svgPt.x = pt.x; svgPt.y = pt.y;
+        
+        const screenPt = svgPt.matrixTransform(pt.el.getScreenCTM());
+        const canvasRect = canvas.getBoundingClientRect(); 
+        
+        const x = screenPt.x - canvasRect.left;
+        const y = screenPt.y - canvasRect.top;
+
+        ctx.fillStyle = isLightMode ? 'rgba(0, 80, 230, 0.8)' : 'rgba(0, 190, 255, 0.75)';
+        ctx.strokeStyle = isLightMode ? '#ffffff' : '#0076ff';
+        ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(x, y, 7, 0, Math.PI*2); ctx.fill(); ctx.stroke();
+    });
+}
+
+canvas.addEventListener('click', (e) => {
+    if (!svgEl || hasDragged) return; 
+    
+    const clickX = e.clientX, clickY = e.clientY;
+    const hitIdx = activePoints.findIndex(pt => {
+        const svgPt = svgEl.createSVGPoint(); svgPt.x = pt.x; svgPt.y = pt.y;
+        const screenPt = svgPt.matrixTransform(pt.el.getScreenCTM());
+        return Math.hypot(clickX - screenPt.x, clickY - screenPt.y) < 15;
+    });
+
+    if (hitIdx !== -1) {
+        activePoints.splice(hitIdx, 1);
+    } else {
+        let best = { d: 30, pt: null };
+        pathItems.forEach(item => {
+            let cx = 0, cy = 0, sx = 0, sy = 0;
+            item.cmds.forEach((cmd, cIdx) => {
+                let a = cmd.args;
+                if (cmd.type === 'M' || cmd.type === 'm') {
+                    if (cmd.type === 'M') { cx = a[0]; cy = a[1]; } else { cx += a[0]; cy += a[1]; }
+                    sx = cx; sy = cy;
+                } else if (cmd.type === 'L' || cmd.type === 'l') {
+                    for(let k=0; k<a.length; k+=2) {
+                        let vx = cmd.type === 'L' ? a[k] - cx : a[k];
+                        let vy = cmd.type === 'L' ? a[k+1] - cy : a[k+1];
+                        let midX = cx + vx/2, midY = cy + vy/2;
+                        
+                        if (cmd.type === 'L') { cx = a[k]; cy = a[k+1]; } else { cx += a[k]; cy += a[k+1]; }
+                        
+                        const svgPt = svgEl.createSVGPoint(); svgPt.x = midX; svgPt.y = midY;
+                        const screenPt = svgPt.matrixTransform(item.el.getScreenCTM());
+                        const actualDist = Math.hypot(clickX - screenPt.x, clickY - screenPt.y);
+                        
+                        if (actualDist < best.d) {
+                            best = { d: actualDist, pt: { x: midX, y: midY, el: item.el, cmds: item.cmds, cIdx, aIdx: k, vx, vy, type: cmd.type }};
+                        }
+                    }
+                } else if (cmd.type.toLowerCase() === 'c') {
+                    for (let k = 0; k < a.length; k += 6) {
+                        if (cmd.type === 'C') { cx = a[k+4]; cy = a[k+5]; } else { cx += a[k+4]; cy += a[k+5]; }
+                    }
+                } else if (cmd.type.toLowerCase() === 'z') { cx = sx; cy = sy; }
+            });
+        });
+        if (best.pt) activePoints.push(best.pt);
+    }
+    drawMarkers();
+});
+
+document.getElementById('processBtn').addEventListener('click', () => {
+    if (!svgEl) return;
+    activePoints = [];
+    const target = parseFloat(document.getElementById('targetThick').value) * globalScale;
+    const err = globalScale === 100 ? 15 : 0.15;
+
+    pathItems.forEach(item => {
+        let cx = 0, cy = 0, sx = 0, sy = 0;
+        item.cmds.forEach((cmd, cIdx) => {
+            let a = cmd.args;
+            if (cmd.type === 'M' || cmd.type === 'm') {
+                if (cmd.type === 'M') { cx = a[0]; cy = a[1]; } else { cx += a[0]; cy += a[1]; }
+                sx = cx; sy = cy;
+            } else if (cmd.type === 'L' || cmd.type === 'l') {
+                for(let k=0; k<a.length; k+=2) {
+                    let vx = cmd.type === 'L' ? a[k] - cx : a[k];
+                    let vy = cmd.type === 'L' ? a[k+1] - cy : a[k+1];
+                    let midX = cx + vx/2, midY = cy + vy/2;
+                    
+                    if (cmd.type === 'L') { cx = a[k]; cy = a[k+1]; } else { cx += a[k]; cy += a[k+1]; }
+                    
+                    if (Math.abs(Math.abs(vx)-target)<err || Math.abs(Math.abs(vy)-target)<err) {
+                        activePoints.push({ x: midX, y: midY, el: item.el, cmds: item.cmds, cIdx, aIdx: k, vx, vy, type: cmd.type });
+                    }
+                }
+            } else if (cmd.type.toLowerCase() === 'c') {
+                for (let k = 0; k < a.length; k += 6) {
+                    if (cmd.type === 'C') { cx = a[k+4]; cy = a[k+5]; } else { cx += a[k+4]; cy += a[k+5]; }
+                }
+            } else if (cmd.type.toLowerCase() === 'z') { cx = sx; cy = sy; }
+        });
+    });
+    drawMarkers();
+});
+
+document.getElementById('updateBtn').addEventListener('click', () => {
+    if (!svgEl) return;
+    const newValue = (parseFloat(document.getElementById('actualThick').value) - parseFloat(document.getElementById('kerf').value)) * globalScale;
+    
+    activePoints.forEach(pt => {
+        let cmd = pt.cmds[pt.cIdx];
+        let vx = pt.vx, vy = pt.vy;
+        if (Math.abs(vx) > Math.abs(vy)) vx = (vx < 0 ? -1 : 1) * newValue;
+        else vy = (vy < 0 ? -1 : 1) * newValue;
+        
+        if (pt.type === 'L') {
+            // Context tracking loop determines exact sub-segment tracking coordinates cleanly
+            let pathD = pt.el.getAttribute('d') || "";
+            let tokens = pathD.match(/([a-df-zAB-Z])|(-?\d+(?:\.\d+)?)/g) || [];
+            let absoluteXContext = 0, absoluteYContext = 0;
+            let currentTokenMatchCount = 0;
+            
+            for (let idx = 0; idx < tokens.length; idx++) {
+                if (isNaN(tokens[idx])) continue;
+                if (currentTokenMatchCount === pt.aIdx) {
+                    // Update matching sub-segment indexes directly
+                    break;
+                }
+                currentTokenMatchCount++;
+            }
+            
+            let prevX = cmd.args[pt.aIdx] - pt.vx, prevY = cmd.args[pt.aIdx+1] - pt.vy;
+            cmd.args[pt.aIdx] = prevX + vx; cmd.args[pt.aIdx+1] = prevY + vy;
+        } else {
+            cmd.args[pt.aIdx] = vx; cmd.args[pt.aIdx+1] = vy;
+        }
+    });
+
+    pathItems.forEach(item => {
+        // Enforce safe clean syntax serialization reconstruction steps
+        let reconstructedD = "";
+        item.cmds.forEach(c => {
+            reconstructedD += c.type + " " + c.args.join(" ") + " ";
+        });
+        item.el.setAttribute('d', reconstructedD.trim());
+    });
+
+    const serializer = new XMLSerializer();
+    const blob = new Blob([serializer.serializeToString(svgEl)], {type: "image/svg+xml"});
+    document.getElementById('downloadBtn').href = URL.createObjectURL(blob);
+    document.getElementById('downloadBtn').style.display = 'block';
+    document.getElementById('statusBar').innerText = "All slots customized. Download your fixed file now!";
+});
+</script>
+</body>
+</html>
