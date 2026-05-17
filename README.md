@@ -1,4 +1,4 @@
-# Universal Laser Slot Resizer & Visualizer Pro
+# Universal Laser Slot Resizer & Visualizer
 
 A high-precision, client-side web tool designed to automatically detect, preview, and resize interlocking finger-joints and slots in SVG files for laser cutting. 
 
